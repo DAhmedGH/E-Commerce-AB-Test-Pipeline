@@ -3,7 +3,7 @@
 ## Project Overview
 This project is an end-to-end data analytics pipeline designed to evaluate a new e-commerce checkout flow. I simulated realistic raw event logs, transformed the data in the cloud using dbt and Google BigQuery, conducted statistical hypothesis testing in Python, and visualized the business impact in an interactive Tableau dashboard.
 
-**[View the Interactive Tableau Dashboard Here](https://public.tableau.com/app/profile/danieal.ahmed/viz/E-CommerceCheckoutABTest/Dashboard1)**
+**[View the Interactive Tableau Dashboard Here](https://public.tableau.com/app/profile/danieal.ahmed/viz/E-CommerceCheckoutABTest/ABTestResults)**
 
 ## Tools Used
 * **Python (Pandas, NumPy, SciPy, Statsmodels):** Raw data generation and statistical hypothesis testing (Z-tests, T-tests).
