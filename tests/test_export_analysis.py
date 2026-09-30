@@ -53,14 +53,64 @@ class DashboardExportTests(unittest.TestCase):
             ),
             (lambda rows: rows[0].update(total_users=None), "total_users"),
             (lambda rows: rows[0].update(total_users=0), "total_users"),
+            (lambda rows: rows[0].update(total_users=1.5), "total_users"),
             (
                 lambda rows: rows[0].update(total_conversions=-1),
                 "total_conversions",
+            ),
+            (
+                lambda rows: rows[0].update(total_conversions=0.5),
+                "total_conversions",
+            ),
+            (
+                lambda rows: rows[0].update(total_conversions=2),
+                "total_conversions cannot exceed total_users",
             ),
             (lambda rows: rows[0].update(total_revenue=-1), "total_revenue"),
             (
                 lambda rows: rows[0].update(total_revenue=float("nan")),
                 "total_revenue",
+            ),
+            (
+                lambda rows: rows[0].update(
+                    total_conversions=0,
+                    conversion_rate=0,
+                    average_order_value=None,
+                ),
+                "zero conversions require zero total_revenue",
+            ),
+            (
+                lambda rows: rows[0].update(conversion_rate=float("nan")),
+                "conversion_rate",
+            ),
+            (
+                lambda rows: rows[0].update(conversion_rate=0.5),
+                "conversion_rate disagrees with totals",
+            ),
+            (
+                lambda rows: rows[0].update(conversion_rate=1.1),
+                "conversion_rate disagrees with totals",
+            ),
+            (
+                lambda rows: rows[0].update(average_order_value=9.99),
+                "average_order_value disagrees with totals",
+            ),
+            (
+                lambda rows: rows[0].update(average_order_value=float("inf")),
+                "average_order_value",
+            ),
+            (
+                lambda rows: rows[0].update(average_order_value=None),
+                "average_order_value",
+            ),
+            (
+                lambda rows: rows[0].update(
+                    total_conversions=0,
+                    total_revenue=Decimal("0"),
+                    conversion_rate=0,
+                    average_order_value=0,
+                ),
+                "null average_order_value",
             ),
         )
 
@@ -71,6 +121,35 @@ class DashboardExportTests(unittest.TestCase):
 
                 with self.assertRaisesRegex(ValueError, message):
                     validate_dashboard_rows(rows)
+
+    def test_zero_conversions_allow_null_aov(self):
+        rows = dashboard_rows()
+        rows[0].update(
+            total_conversions=0,
+            total_revenue=Decimal("0"),
+            conversion_rate=0,
+            average_order_value=None,
+        )
+        validate_dashboard_rows(rows)
+
+    def test_metrics_use_dbt_rounding_precision(self):
+        rows = dashboard_rows()
+        rows[0].update(
+            total_users=32,
+            total_conversions=2,
+            total_revenue=Decimal("10.01"),
+            conversion_rate=0.0625,
+            average_order_value=5.01,
+        )
+        validate_dashboard_rows(rows)
+
+        rows[0].update(
+            total_conversions=1,
+            total_revenue=Decimal("10.00"),
+            conversion_rate=0.0313,
+            average_order_value=10.00,
+        )
+        validate_dashboard_rows(rows)
 
     def test_one_invocation_exports_both_csvs(self):
         users = [

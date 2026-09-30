@@ -3,7 +3,7 @@
 import argparse
 import csv
 import re
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 
 import pandas as pd
@@ -39,6 +39,17 @@ def validate_dashboard_rows(rows):
                 f"Dashboard export is missing columns: {', '.join(sorted(missing))}"
             )
 
+        def finite_number(field):
+            try:
+                value = Decimal(str(row[field]))
+            except (InvalidOperation, TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"Dashboard {field} must be a finite number"
+                ) from exc
+            if not value.is_finite():
+                raise ValueError(f"Dashboard {field} must be a finite number")
+            return value
+
         variant = row["variant_group"]
         device = row["device_type"]
 
@@ -58,20 +69,37 @@ def validate_dashboard_rows(rows):
         variants.add(variant)
         devices.add(device)
 
-        for field in ("total_users", "total_conversions", "total_revenue"):
-            try:
-                value = Decimal(str(row[field]))
-            except (InvalidOperation, TypeError, ValueError) as exc:
+        users = finite_number("total_users")
+        conversions = finite_number("total_conversions")
+        revenue = finite_number("total_revenue")
+        if users <= 0 or users != users.to_integral_value():
+            raise ValueError("Dashboard total_users must be a positive integer")
+        if conversions < 0 or conversions != conversions.to_integral_value():
+            raise ValueError("Dashboard total_conversions must be a nonnegative integer")
+        if conversions > users:
+            raise ValueError("Dashboard total_conversions cannot exceed total_users")
+        if revenue < 0:
+            raise ValueError("Dashboard total_revenue has an invalid total")
+
+        conversion_rate = finite_number("conversion_rate")
+        expected_rate = (conversions / users).quantize(
+            Decimal("0.0001"), rounding=ROUND_HALF_UP
+        )
+        if not 0 <= conversion_rate <= 1 or conversion_rate != expected_rate:
+            raise ValueError("Dashboard conversion_rate disagrees with totals")
+
+        if conversions == 0:
+            if revenue != 0 or row["average_order_value"] is not None:
                 raise ValueError(
-                    f"Dashboard {field} must be a finite number"
-                ) from exc
-
-            if not value.is_finite():
-                raise ValueError(f"Dashboard {field} must be a finite number")
-
-            valid_total = value > 0 if field == "total_users" else value >= 0
-            if not valid_total:
-                raise ValueError(f"Dashboard {field} has an invalid total")
+                    "Dashboard zero conversions require zero total_revenue and null average_order_value"
+                )
+        else:
+            aov = finite_number("average_order_value")
+            expected_aov = (revenue / conversions).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            if aov < 0 or aov != expected_aov:
+                raise ValueError("Dashboard average_order_value disagrees with totals")
 
     if variants != {"Control", "Variant"}:
         raise ValueError("Dashboard export must include Control and Variant")
