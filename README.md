@@ -59,6 +59,8 @@ AOV is conditional on conversion, so the purchaser populations can differ betwee
 
 The Tableau dashboard summarizes the primary conversion result, secondary AOV metric, device-level performance, and the simulated business recommendation.
 
+Revenue per assigned user is reported in the experiment analysis and README results, but is not currently visualized in Tableau.
+
 [View the published Tableau dashboard](https://public.tableau.com/app/profile/danieal.ahmed/viz/E-CommerceCheckoutABTest/ABTestResults)
 
 [Tableau packaged workbook](tableau/E-Commerce%20Checkout%20AB%20Test.twbx)
@@ -67,9 +69,38 @@ Overall dashboard metrics are calculated from the underlying totals:
 
 - **Conversion rate:** `SUM(total_conversions) / SUM(total_users)`
 - **AOV:** `SUM(total_revenue) / SUM(total_conversions)`
-- **Revenue per assigned user:** `SUM(total_revenue) / SUM(total_users)`
+
+Revenue per assigned user in the analysis is calculated as `SUM(total_revenue) / SUM(total_users)`.
 
 The device-level rows are not averaged to calculate overall rates.
+
+### Refreshing the Tableau data
+
+The dashboard uses the six-row aggregate output from
+`fct_ab_test_results`.
+
+Run `export_analysis.py` after `dbt run`, as shown in Getting started. The same
+invocation writes `clean_data_for_stats.csv` for the notebook and
+`dashboard_data.csv` from `fct_ab_test_results` for Tableau. Reconnect the
+packaged Tableau workbook to `dashboard_data.csv` and refresh its extract.
+
+The required columns are:
+
+- `variant_group`
+- `device_type`
+- `total_users`
+- `total_conversions`
+- `total_revenue`
+- `conversion_rate`
+- `average_order_value`
+
+After refreshing, verify that:
+
+- overall conversion uses `SUM(total_conversions) / SUM(total_users)`
+- overall AOV uses `SUM(total_revenue) / SUM(total_conversions)`
+- the dashboard narrative reflects the current experiment results
+
+`dashboard_data.csv` is generated locally and is not tracked by Git.
 
 ## Repository structure
 
@@ -80,7 +111,7 @@ The device-level rows are not averaged to calculate overall rates.
 | `dbt_models/` | User-level and aggregate BigQuery models |
 | `tests/` | Python unit tests and dbt data tests |
 | `experiment_decision.py` | Direction-aware experiment decision logic |
-| `export_analysis.py` | BigQuery-to-Python analysis export |
+| `export_analysis.py` | BigQuery exports for the notebook and Tableau |
 | `ab_test_analysis.ipynb` | Statistical analysis and experiment results |
 | `tableau/` | Packaged Tableau workbook |
 
@@ -132,14 +163,14 @@ dbt run --profiles-dir .
 dbt test --profiles-dir .
 ```
 
-Export the user-level model and run the analysis:
+Export both dbt models for the notebook and Tableau, then run the analysis:
 
 ```powershell
 python export_analysis.py --project $env:DBT_BIGQUERY_PROJECT --dataset $env:DBT_BIGQUERY_DATASET --location $env:DBT_BIGQUERY_LOCATION
 jupyter notebook ab_test_analysis.ipynb
 ```
 
-**Reload policy:** each synthetic run replaces the full `raw_events` table. After reloading, rerun dbt and regenerate the analysis export before executing the notebook.
+**Reload policy:** each synthetic run replaces the full `raw_events` table. After reloading, rerun dbt and regenerate both exports before executing the notebook or refreshing Tableau.
 
 Google Cloud credentials are not stored in the repository. Local profiles, generated CSVs, virtual environments, dbt build artifacts, and caches are ignored by Git.
 
@@ -152,7 +183,6 @@ Python validation and unit tests cover:
 - binary conversion values
 - timestamp bounds
 - paid-purchase consistency
-- deterministic generation
 - direction-aware experiment decisions
 
 Run the Python test suite with:
