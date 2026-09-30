@@ -1,0 +1,10 @@
+name: ab_test_audit
+version: '1.0'
+config-version: 2
+profile: ab_test_audit
+
+model-paths: ['dbt_models']
+
+models:
+  ab_test_audit:
+    +materialized: view

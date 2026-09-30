@@ -1,0 +1,42 @@
+version: 2
+
+sources:
+  - name: experiment_raw
+    database: "{{ target.database }}"
+    schema: "{{ var('raw_dataset', target.schema) }}"
+    tables:
+      - name: raw_events
+
+models:
+  - name: fct_ab_test_users
+    description: One row per assigned user; the input to the statistical notebook.
+    columns:
+      - name: user_id
+        data_tests:
+          - not_null
+          - unique
+      - name: variant
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Control', 'Variant']
+      - name: device
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Mobile', 'Desktop', 'Tablet']
+      - name: event_time
+        data_tests:
+          - not_null
+      - name: converted
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: checkout_amount
+        data_tests:
+          - not_null
